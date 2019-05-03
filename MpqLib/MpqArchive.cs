@@ -234,21 +234,20 @@ namespace Foole.Mpq
                     fileIndex++;
                 }
 
-                //test: trick wc3 by adding dummy entries, so that non-null/deleted entries in hashtable is same amount as blocktable's size?
-                // did not work *sadface* :(
+                // Match size of blocktable with amount of occupied entries in hashtable
+                /*
                 for ( var i = blockTable.Size; i < hashTableEntries; i++ )
                 {
                     var entry = MpqEntry.Dummy;
                     entry.SetPos( filePos );
                     blockTable.Add( entry );
-                    //filePos += entry.CompressedSize; // should always be 0
                 }
                 blockTable.UpdateSize();
+                */
 
                 hashTable.WriteToStream( writer );
                 blockTable.WriteToStream( writer );
-
-                // untested
+                
                 if ( !archiveBeforeTables )
                 {
                     foreach ( var mpqFile in mpqFiles )
