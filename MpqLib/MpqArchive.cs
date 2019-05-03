@@ -301,10 +301,10 @@ namespace Foole.Mpq
             return true;
         }
 
-        public int AddFilenames(Stream stream)
+        public int AddFilenames(Stream stream, bool leaveOpen = false)
         {
             var filesFound = 0;
-            using (StreamReader sr = new StreamReader(stream))
+            using (StreamReader sr = new StreamReader(stream, Encoding.UTF8, true, 1024, leaveOpen))
             {
                 while (!sr.EndOfStream)
                     if (AddFilename(sr.ReadLine()))
