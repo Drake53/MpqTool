@@ -77,7 +77,7 @@ public sealed class HashTable : MpqTable
                 hashIndex = step;
             }
 
-            // NOTE: replacing AddEntry with AddDeleted is only possible if passing true the returnOnUnknown argument of method FindCollidingHashEntries
+            /** NOTE: replacing AddEntry with AddDeleted is only possible if passing true to the returnOnUnknown argument of method <see cref="MpqArchive.FindCollidingHashEntries"/> */
 
             AddDeleted( --hashIndex, step );
             //AddEntry( hash, --hashIndex, step );
