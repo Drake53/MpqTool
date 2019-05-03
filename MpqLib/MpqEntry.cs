@@ -53,7 +53,20 @@ namespace Foole.Mpq
 
         private uint _fileOffset; // Relative to the header offset
         internal uint FilePos { get; private set; } // Absolute position in the file
+        internal bool IsAdded { get; private set; }
         private string _filename;
+
+        public void SetPos( uint filePos )
+        {
+            if ( IsAdded )
+            {
+                throw new InvalidOperationException( "Cannot change the FilePos for an MpqEntry after it's been set." );
+            }
+
+            //TODO: also set _fileOffset? (actually, can set _fileOffset in WriteToStream method, because there the offset should be passed as well)
+            FilePos = filePos;
+            IsAdded = true;
+        }
 
         public static readonly uint Size = 16;
 
@@ -77,8 +90,40 @@ namespace Foole.Mpq
             CompressedSize = br.ReadUInt32();
             FileSize = br.ReadUInt32();
             Flags = (MpqFileFlags)br.ReadUInt32();
-            EncryptionSeed = 0;
+
+            IsAdded = true;
         }
+
+        internal MpqEntry( uint filePos, uint headerOffset, uint compressedSize, uint fileSize, MpqFileFlags flags )
+        {
+            _fileOffset = filePos - headerOffset;
+            FilePos = filePos;
+            CompressedSize = compressedSize;
+            FileSize = fileSize;
+            Flags = flags;
+            EncryptionSeed = 0;
+
+            IsAdded = true;
+        }
+
+        internal MpqEntry( uint filePos, uint compressedSize, uint fileSize, MpqFileFlags flags )
+        {
+            FilePos = filePos;
+            CompressedSize = compressedSize;
+            FileSize = fileSize;
+            Flags = flags;
+
+            IsAdded = true;
+        }
+
+        internal MpqEntry( uint compressedSize, uint fileSize, MpqFileFlags flags )
+        {
+            CompressedSize = compressedSize;
+            FileSize = fileSize;
+            Flags = flags;
+        }
+
+        public static MpqEntry Dummy => new MpqEntry( 0, 0, MpqFileFlags.Exists ); //remove exists flag??
 
         private uint CalculateEncryptionSeed()
         {

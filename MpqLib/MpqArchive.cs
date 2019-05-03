@@ -30,6 +30,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 
 namespace Foole.Mpq
 {
@@ -44,13 +46,15 @@ namespace Foole.Mpq
 
         internal Stream BaseStream { get; private set; }
         internal int BlockSize { get; private set; }
+        internal uint HashEntryMask => _mpqHeader.HashTableSize - 1;
 
-		static MpqArchive()
+        static MpqArchive()
 		{
 			sStormBuffer = BuildStormBuffer();
 		}
 
-		public MpqArchive(string filename)
+        /// <exception cref="FileNotFoundException"></exception>
+        public MpqArchive(string filename)
 		{
 			BaseStream = File.Open(filename, FileMode.Open, FileAccess.Read);
 			Init();
@@ -70,7 +74,66 @@ namespace Foole.Mpq
                 AddListfileFilenames();
         }
 
-		public void Dispose()
+        /// <exception cref="IOException"></exception>
+        public MpqArchive( string filename, ICollection<MpqFile> mpqFiles )
+        {
+            _headerOffset = 0;
+
+            BaseStream = File.Open( filename, FileMode.CreateNew, FileAccess.Write );
+            Build( mpqFiles );
+        }
+
+        public MpqArchive( Stream sourceStream, ICollection<MpqFile> mpqFiles )
+        {
+            BaseStream = sourceStream;
+
+            // The MPQ header will always start at an offset aligned to 512 bytes.
+            var i = (uint)BaseStream.Position & ( 0x200 - 1 );
+            if ( i > 0 )
+            {
+                Console.WriteLine( "Warning: Pre-Archive Data was not aligned to 512 bytes." );
+                for ( ; i < 0x200; i++ )
+                {
+                    BaseStream.WriteByte( 0 );
+                }
+            }
+
+            _headerOffset = BaseStream.Position;
+
+            Build( mpqFiles );
+        }
+
+        /// <exception cref="IOException"></exception>
+        public MpqArchive( string filename, BlockTable blockTable, HashTable hashTable, ICollection<MpqFile> mpqFiles )
+        {
+            _headerOffset = 0;
+
+            BaseStream = File.Open( filename, FileMode.CreateNew, FileAccess.Write );
+            Build( blockTable, hashTable, mpqFiles );
+        }
+
+        public MpqArchive( Stream sourceStream, BlockTable blockTable, HashTable hashTable, ICollection<MpqFile> mpqFiles, ushort blockSize )
+        {
+            BaseStream = sourceStream;
+
+            // dont copypaste this part
+            // The MPQ header will always start at an offset aligned to 512 bytes.
+            var i = (uint)BaseStream.Position & ( 0x200 - 1 );
+            if ( i > 0 )
+            {
+                Console.WriteLine( "Warning: Pre-Archive Data was not aligned to 512 bytes." );
+                for ( ; i < 0x200; i++ )
+                {
+                    BaseStream.WriteByte( 0 );
+                }
+            }
+
+            _headerOffset = BaseStream.Position;
+
+            Build( blockTable, hashTable, mpqFiles, blockSize );
+        }
+
+        public void Dispose()
 		{
             if (BaseStream != null)
                 BaseStream.Close();
@@ -91,18 +154,18 @@ namespace Foole.Mpq
 			// Load hash table
             BaseStream.Seek(_mpqHeader.HashTablePos, SeekOrigin.Begin);
 			byte[] hashdata = br.ReadBytes((int)(_mpqHeader.HashTableSize * MpqHash.Size));
-			DecryptTable(hashdata, "(hash table)");
+			MpqTable.Decrypt(hashdata, HashTable.TableKey);
 
 			BinaryReader br2 = new BinaryReader(new MemoryStream(hashdata));
 			_hashes = new MpqHash[_mpqHeader.HashTableSize];
 
 			for (int i = 0; i < _mpqHeader.HashTableSize; i++)
-				_hashes[i] = new MpqHash(br2);
+				_hashes[i] = new MpqHash( br2, HashEntryMask );
 
 			// Load entry table
             BaseStream.Seek(_mpqHeader.BlockTablePos, SeekOrigin.Begin);
 			byte[] entrydata = br.ReadBytes((int)(_mpqHeader.BlockTableSize * MpqEntry.Size));
-			DecryptTable(entrydata, "(block table)");
+			MpqTable.Decrypt(entrydata, BlockTable.TableKey);
 
 			br2 = new BinaryReader(new MemoryStream(entrydata));
 			_entries = new MpqEntry[_mpqHeader.BlockTableSize];
@@ -129,9 +192,79 @@ namespace Foole.Mpq
 				}
 			}
 			return false;
-		}
-		
-		public MpqStream OpenFile(string filename)
+        }
+
+        private void Build( ICollection<MpqFile> mpqFiles, ushort blockSize = 8 )
+        {
+            throw new NotImplementedException();
+            // var blockTable = new BlockTable();
+            // var hashTable = new HashTable();
+
+            //Build( blockTable, hashTable, mpqFiles, blockSize );
+        }
+
+        private void Build( BlockTable blockTable, HashTable hashTable, ICollection<MpqFile> mpqFiles, ushort blockSize = 8 )
+        {
+            using ( var writer = new BinaryWriter( BaseStream, new UTF8Encoding( false, true ), true ) )
+            {
+                // Skip the MPQ header, since its contents will be calculated afterwards.
+                writer.Seek( (int)MpqHeader.Size, SeekOrigin.Current );
+
+                const bool archiveBeforeTables = true;
+                uint hashTableEntries = 0;
+
+                // Write Archive
+                var fileIndex = (uint)0;
+                var filePos = (uint)0;
+                // TODO: add support for encryption of the archive files
+                foreach ( var mpqFile in mpqFiles )
+                {
+                    uint locale = 0;
+                    mpqFile.AddToArchive( fileIndex, filePos, locale, hashTable.Mask );
+
+                    if ( archiveBeforeTables )
+                    {
+                        mpqFile.WriteToStream( writer );
+                    }
+
+                    hashTableEntries += hashTable.Add( mpqFile.MpqHash, mpqFile.HashIndex, mpqFile.HashCollisions );
+                    blockTable.Add( mpqFile.MpqEntry );
+
+                    filePos += mpqFile.MpqEntry.CompressedSize;
+                    fileIndex++;
+                }
+
+                //test: trick wc3 by adding dummy entries, so that non-null/deleted entries in hashtable is same amount as blocktable's size?
+                // did not work *sadface* :(
+                for ( var i = blockTable.Size; i < hashTableEntries; i++ )
+                {
+                    var entry = MpqEntry.Dummy;
+                    entry.SetPos( filePos );
+                    blockTable.Add( entry );
+                    //filePos += entry.CompressedSize; // should always be 0
+                }
+                blockTable.UpdateSize();
+
+                hashTable.WriteToStream( writer );
+                blockTable.WriteToStream( writer );
+
+                // untested
+                if ( !archiveBeforeTables )
+                {
+                    foreach ( var mpqFile in mpqFiles )
+                    {
+                        mpqFile.WriteToStream( writer );
+                    }
+                }
+
+                writer.Seek( (int)_headerOffset, SeekOrigin.Begin );
+
+                _mpqHeader = new MpqHeader( filePos, hashTable.Size, blockTable.Size, blockSize, archiveBeforeTables );
+                _mpqHeader.WriteToStream( writer );
+            }
+        }
+
+        public MpqStream OpenFile(string filename)
 		{
 			MpqHash hash;
 			MpqEntry entry;
@@ -160,21 +293,24 @@ namespace Foole.Mpq
 
         public bool AddListfileFilenames()
         {
-            if (!AddFilename("(listfile)")) return false;
+            if (!AddFilename(ListFile.Key)) return false;
 
-            using (Stream s = OpenFile("(listfile)"))
+            using (Stream s = OpenFile(ListFile.Key))
                 AddFilenames(s);
 
             return true;
         }
 
-        public void AddFilenames(Stream stream)
+        public int AddFilenames(Stream stream)
         {
+            var filesFound = 0;
             using (StreamReader sr = new StreamReader(stream))
             {
                 while (!sr.EndOfStream)
-                    AddFilename(sr.ReadLine());
+                    if (AddFilename(sr.ReadLine()))
+                        filesFound++;
             }
+            return filesFound;
         }
 
         public bool AddFilename(string filename)
@@ -233,9 +369,54 @@ namespace Foole.Mpq
 
             hash = new MpqHash();
             return false;
-		}
+        }
 
-		internal static uint HashString(string input, int offset)
+        private int TryGetHashEntry( int entryIndex, out MpqHash hash )
+        {
+            for ( var i = 0; i < _hashes.Length; i++ )
+            {
+                if ( _hashes[i].BlockIndex == entryIndex )
+                {
+                    hash = _hashes[i];
+                    return i;
+                }
+            }
+
+            hash = MpqHash.NULL;
+            return -1;
+        }
+
+        private uint FindCollidingHashEntries( uint hashIndex, bool returnOnUnknown )
+        {
+            var count = (uint)0;
+            var initial = hashIndex;
+            for ( ; hashIndex >= 0; count++ )
+            {
+                if ( _hashes[--hashIndex].IsEmpty() )
+                {
+                    return count;
+                }
+                else if ( returnOnUnknown && _entries[_hashes[hashIndex].BlockIndex].Filename == null )
+                {
+                    return count;
+                }
+            }
+            hashIndex = HashEntryMask;
+            for ( ; hashIndex > initial; count++ )
+            {
+                if ( _hashes[--hashIndex].IsEmpty() )
+                {
+                    return count;
+                }
+                else if ( returnOnUnknown && _entries[_hashes[hashIndex].BlockIndex].Filename == null )
+                {
+                    return count;
+                }
+            }
+            return count;
+        }
+
+        internal static uint HashString(string input, int offset)
 		{
 			uint seed1 = 0x7fed7fed;
 			uint seed2 = 0xeeeeeeee;
@@ -247,13 +428,48 @@ namespace Foole.Mpq
 				seed2 = (uint)val + seed1 + seed2 + (seed2 << 5) + 3;
 			}
 			return seed1;
-		}
-		
-		// Used for Hash Tables and Block Tables
-		internal static void DecryptTable(byte[] data, string key)
-		{
-			DecryptBlock(data, HashString(key, 0x300));
-		}
+        }
+
+        internal static void EncryptBlock( byte[] data, uint seed1 )
+        {
+            uint seed2 = 0xeeeeeeee;
+
+            // NB: If the block is not an even multiple of 4,
+            // the remainder is not encrypted
+            for ( int i = 0; i < data.Length - 3; i += 4 )
+            {
+                seed2 += sStormBuffer[0x400 + ( seed1 & 0xff )];
+
+                uint unencrypted = BitConverter.ToUInt32(data, i);
+                uint result = unencrypted ^ ( seed1 + seed2 );
+
+                seed1 = ( ( ~seed1 << 21 ) + 0x11111111 ) | ( seed1 >> 11 );
+                seed2 = unencrypted + seed2 + ( seed2 << 5 ) + 3;
+
+                data[i + 0] = ( (byte)( result & 0xff ) );
+                data[i + 1] = ( (byte)( ( result >> 8 ) & 0xff ) );
+                data[i + 2] = ( (byte)( ( result >> 16 ) & 0xff ) );
+                data[i + 3] = ( (byte)( ( result >> 24 ) & 0xff ) );
+            }
+        }
+
+        internal static void EncryptBlock( uint[] data, uint seed1 )
+        {
+            uint seed2 = 0xeeeeeeee;
+
+            for ( int i = 0; i < data.Length; i++ )
+            {
+                seed2 += sStormBuffer[0x400 + ( seed1 & 0xff )];
+
+                uint unencrypted = data[i];
+                uint result = unencrypted ^ (seed1 + seed2);
+
+                seed1 = ( ( ~seed1 << 21 ) + 0x11111111 ) | ( seed1 >> 11 );
+                seed2 = unencrypted + seed2 + ( seed2 << 5 ) + 3;
+
+                data[i] = result;
+            }
+        }
 
 		internal static void DecryptBlock(byte[] data, uint seed1)
 		{
@@ -355,84 +571,6 @@ namespace Foole.Mpq
         {
             foreach (MpqEntry entry in _entries)
                 yield return entry;
-        }
-    }
-
-    // TODO: Possibly incorporate this into MpqArchive
-    public class MpqHeader
-    {
-        public uint ID { get; private set; } // Signature.  Should be 0x1a51504d
-        public uint DataOffset { get; private set; } // Offset of the first file.  AKA Header size
-        public uint ArchiveSize { get; private set; }
-        public ushort MpqVersion { get; private set; } // Most are 0.  Burning Crusade = 1
-        public ushort BlockSize { get; private set; } // Size of file block is 0x200 << BlockSize
-        public uint HashTablePos { get; private set; }
-        public uint BlockTablePos { get; private set; }
-        public uint HashTableSize { get; private set; }
-        public uint BlockTableSize { get; private set; }
-
-        // Version 1 fields
-        // The extended block table is an array of Int16 - higher bits of the offests in the block table.
-        public Int64 ExtendedBlockTableOffset { get; private set; }
-        public short HashTableOffsetHigh { get; private set; }
-        public short BlockTableOffsetHigh { get; private set; }
-
-
-        public static readonly uint MpqId = 0x1a51504d;
-        public static readonly uint Size = 32;
-
-        public static MpqHeader FromReader(BinaryReader br)
-        {
-            uint id = br.ReadUInt32();
-            if (id != MpqId) return null;
-            MpqHeader header = new MpqHeader
-            {
-                ID = id,
-                DataOffset = br.ReadUInt32(),
-                ArchiveSize = br.ReadUInt32(),
-                MpqVersion = br.ReadUInt16(),
-                BlockSize = br.ReadUInt16(),
-                HashTablePos = br.ReadUInt32(),
-                BlockTablePos = br.ReadUInt32(),
-                HashTableSize = br.ReadUInt32(),
-                BlockTableSize = br.ReadUInt32(),
-            };
-
-            if (header.MpqVersion == 1)
-            {
-                header.ExtendedBlockTableOffset = br.ReadInt64();
-                header.HashTableOffsetHigh = br.ReadInt16();
-                header.BlockTableOffsetHigh = br.ReadInt16();
-            }
-
-            return header;
-        }
-
-        public void SetHeaderOffset(long headerOffset)
-        {
-            HashTablePos += (uint)headerOffset;
-            BlockTablePos += (uint)headerOffset;
-            if (DataOffset == 0x6d9e4b86) // A protected archive.  Seen in some custom wc3 maps.
-                DataOffset = (uint)(MpqHeader.Size + headerOffset);
-        }
-    }
-
-    internal struct MpqHash
-    {
-        public uint Name1 { get; private set; }
-        public uint Name2 { get; private set; }
-        public uint Locale { get; private set; }
-        public uint BlockIndex { get; private set; }
-
-        public static readonly uint Size = 16;
-
-        public MpqHash(BinaryReader br)
-            : this()
-        {
-            Name1 = br.ReadUInt32();
-            Name2 = br.ReadUInt32();
-            Locale = br.ReadUInt32(); // Normally 0 or UInt32.MaxValue (0xffffffff)
-            BlockIndex = br.ReadUInt32();
         }
     }
 }

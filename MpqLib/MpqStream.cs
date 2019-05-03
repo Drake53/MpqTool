@@ -66,6 +66,17 @@ namespace Foole.Mpq
                 LoadBlockPositions();
         }
 
+        internal MpqStream( MpqEntry entry, Stream baseStream, int blockSize )
+        {
+            _entry = entry;
+
+            _stream = baseStream;
+            _blockSize = blockSize;
+
+            if ( _entry.IsCompressed && !_entry.IsSingleUnit )
+                LoadBlockPositions();
+        }
+
         // Compressed files start with an array of offsets to make seeking possible
         private void LoadBlockPositions()
         {

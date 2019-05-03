@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="12.0">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -13,9 +13,10 @@
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <OldToolsVersion>3.5</OldToolsVersion>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -25,6 +26,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -33,6 +35,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ICSharpCode.SharpZipLib">
@@ -44,11 +47,18 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BitStream.cs" />
+    <Compile Include="BlockTable.cs" />
+    <Compile Include="HashTable.cs" />
+    <Compile Include="ListFile.cs" />
     <Compile Include="MpqArchive.cs" />
     <Compile Include="MpqEntry.cs" />
+    <Compile Include="MpqFile.cs" />
+    <Compile Include="MpqHash.cs" />
+    <Compile Include="MpqHeader.cs" />
     <Compile Include="MpqHuffman.cs" />
     <Compile Include="MpqParserException.cs" />
     <Compile Include="MpqStream.cs" />
+    <Compile Include="MpqTable.cs" />
     <Compile Include="MpqWavCompression.cs" />
     <Compile Include="PKLibDecompress.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
