@@ -2,10 +2,35 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Authors>Foole, Drake</Authors>
+    <Company />
+    <RepositoryUrl></RepositoryUrl>
+    <PackageTags>MPQ MoPaQ</PackageTags>
+    <Description>Library for reading and building files in MPQ format.</Description>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageProjectUrl>https://github.com/Drake53/MpqTool</PackageProjectUrl>
+    <PackageId>Foole.MpqLib</PackageId>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <RootNamespace>Foole.Mpq</RootNamespace>
+    <AssemblyVersion>1.0.1.*</AssemblyVersion>
+    <Version>1.0.1</Version>
+    <FileVersion>1.0.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="NuGet.Build" Version="2.12.1" />
+    <PackageReference Include="NuGet.CommandLine" Version="4.9.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="SharpZipLib" Version="1.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
