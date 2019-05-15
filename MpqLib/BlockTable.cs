@@ -2,65 +2,66 @@
 using System.Collections.Generic;
 using System.IO;
 
-using Foole.Mpq;
-
-public sealed class BlockTable : MpqTable
+namespace Foole.Mpq
 {
-    internal const string TableKey = "(block table)";
-
-    //private MpqEntry[] _entries;
-    private uint _offset;
-    //private uint _count;
-
-    private List<MpqEntry> _entries;
-
-    /// <exception cref="ArgumentOutOfRangeException"></exception>
-    public BlockTable( uint size, uint headerOffset ) : base( size )
+    public sealed class BlockTable : MpqTable
     {
-        //_entries = new MpqEntry[_size];
+        internal const string TableKey = "(block table)";
 
-        _entries = new List<MpqEntry>( (int)size );
+        //private MpqEntry[] _entries;
+        private uint _offset;
+        //private uint _count;
 
-        _offset = headerOffset;
-        //_count = 0;
-    }
+        private List<MpqEntry> _entries;
 
-    public override string Key => TableKey;
-
-    protected override int EntrySize => (int)MpqEntry.Size;
-
-    /// <exception cref="NullReferenceException"></exception>
-    public void Add( MpqEntry entry )
-    {
-        if ( !entry.IsAdded )
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public BlockTable( uint size, uint headerOffset ) : base( size )
         {
-            throw new InvalidOperationException( "Cannot add an MpqEntry to the BlockTable before its FilePos is known." );
+            //_entries = new MpqEntry[_size];
+
+            _entries = new List<MpqEntry>( (int)size );
+
+            _offset = headerOffset;
+            //_count = 0;
         }
 
-        //_entries[_count++] = entry;
-        _entries.Add( entry );
-    }
-    
-    /*public void Add( ref uint filePos, uint compressedSize, uint fileSize, MpqFileFlags flags )
-    {
-        Add( new MpqEntry( filePos, compressedSize, fileSize, flags ) );
+        public override string Key => TableKey;
 
-        filePos += compressedSize;
-    }*/
+        protected override int EntrySize => (int)MpqEntry.Size;
 
-    public void UpdateSize()
-    {
-        _size = (uint)_entries.Count;
-    }
+        /// <exception cref="NullReferenceException"></exception>
+        public void Add( MpqEntry entry )
+        {
+            if ( !entry.IsAdded )
+            {
+                throw new InvalidOperationException( "Cannot add an MpqEntry to the BlockTable before its FilePos is known." );
+            }
 
-    protected override void WriteEntry( BinaryWriter writer, int i )
-    {
-        var entry = _entries[i];
+            //_entries[_count++] = entry;
+            _entries.Add( entry );
+        }
 
-        // TODO: make method in MpqEntry for this?
-        writer.Write( entry.FilePos + _offset );
-        writer.Write( entry.CompressedSize );
-        writer.Write( entry.FileSize );
-        writer.Write( (uint)entry.Flags );
+        /*public void Add( ref uint filePos, uint compressedSize, uint fileSize, MpqFileFlags flags )
+        {
+            Add( new MpqEntry( filePos, compressedSize, fileSize, flags ) );
+
+            filePos += compressedSize;
+        }*/
+
+        public void UpdateSize()
+        {
+            _size = (uint)_entries.Count;
+        }
+
+        protected override void WriteEntry( BinaryWriter writer, int i )
+        {
+            var entry = _entries[i];
+
+            // TODO: make method in MpqEntry for this?
+            writer.Write( entry.FilePos + _offset );
+            writer.Write( entry.CompressedSize );
+            writer.Write( entry.FileSize );
+            writer.Write( (uint)entry.Flags );
+        }
     }
 }

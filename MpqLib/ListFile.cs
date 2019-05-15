@@ -3,54 +3,55 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-using Foole.Mpq;
-
-class ListFile
+namespace Foole.Mpq
 {
-    public const string Key = "(listfile)";
-
-    private Stream _baseStream;
-    private bool _readOnly;
-
-    public ListFile( IEnumerable<string> files )
+    public class ListFile
     {
-        _baseStream = new MemoryStream();
-        _readOnly = false;
+        public const string Key = "(listfile)";
 
-        using ( var writer = GetWriter() )
+        private Stream _baseStream;
+        private bool _readOnly;
+
+        public ListFile( IEnumerable<string> files )
         {
-            foreach ( var fileName in files )
+            _baseStream = new MemoryStream();
+            _readOnly = false;
+
+            using ( var writer = GetWriter() )
+            {
+                foreach ( var fileName in files )
+                {
+                    writer.WriteLine( fileName );
+                }
+            }
+
+            _baseStream.Position = 0;
+        }
+
+        public Stream BaseStream => _baseStream;
+
+        public void WriteFile( string fileName )
+        {
+            using ( var writer = GetWriter() )
             {
                 writer.WriteLine( fileName );
             }
         }
 
-        _baseStream.Position = 0;
-    }
-
-    public Stream BaseStream => _baseStream;
-
-    public void WriteFile( string fileName )
-    {
-        using ( var writer = GetWriter() )
+        public void Finish()
         {
-            writer.WriteLine( fileName );
-        }
-    }
-
-    public void Finish()
-    {
-        _baseStream.Position = 0;
-        _readOnly = true;
-    }
-
-    private StreamWriter GetWriter()
-    {
-        if ( _readOnly )
-        {
-            throw new IOException();
+            _baseStream.Position = 0;
+            _readOnly = true;
         }
 
-        return new StreamWriter( _baseStream, new UTF8Encoding( false, true ), 1024, true );
+        private StreamWriter GetWriter()
+        {
+            if ( _readOnly )
+            {
+                throw new IOException();
+            }
+
+            return new StreamWriter( _baseStream, new UTF8Encoding( false, true ), 1024, true );
+        }
     }
 }

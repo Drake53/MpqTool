@@ -1,87 +1,88 @@
 ﻿using System;
 using System.IO;
 
-using Foole.Mpq;
-
-public abstract class MpqTable
+namespace Foole.Mpq
 {
-    protected uint _size;
-
-    public uint Size => _size;
-
-    public const int MaxSize = 0x1 << 15;
-
-    public abstract string Key { get; }
-
-    protected abstract int EntrySize { get; }
-
-    /// <exception cref="ArgumentOutOfRangeException"></exception>
-    public MpqTable( uint size )
+    public abstract class MpqTable
     {
-        if ( size > MaxSize )
+        protected uint _size;
+
+        public uint Size => _size;
+
+        public const int MaxSize = 0x1 << 15;
+
+        public abstract string Key { get; }
+
+        protected abstract int EntrySize { get; }
+
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public MpqTable( uint size )
         {
-            throw new ArgumentOutOfRangeException( "size" );
+            if ( size > MaxSize )
+            {
+                throw new ArgumentOutOfRangeException( "size" );
+            }
+
+            _size = size;
         }
 
-        _size = size;
-    }
-
-    public static void Encrypt( byte[] data, string key )
-    {
-        MpqArchive.EncryptBlock( data, MpqArchive.HashString( key, 0x300 ) );
-    }
-
-    public static void Decrypt( byte[] data, string key )
-    {
-        MpqArchive.DecryptBlock( data, MpqArchive.HashString( key, 0x300 ) );
-    }
-
-    /*public void WriteToStream( Stream stream )
-    {
-        WriteToStream( new BinaryWriter( stream ) );
-        //WriteToStream( new StreamWriter( stream ) );
-    }*/
-
-    public void WriteToStream( BinaryWriter writer )
-    {
-        using ( var memoryStream = new MemoryStream( GetEncryptedData() ) )
+        public static void Encrypt( byte[] data, string key )
         {
-            using ( var reader = new BinaryReader( memoryStream ) )
+            MpqArchive.EncryptBlock( data, MpqArchive.HashString( key, 0x300 ) );
+        }
+
+        public static void Decrypt( byte[] data, string key )
+        {
+            MpqArchive.DecryptBlock( data, MpqArchive.HashString( key, 0x300 ) );
+        }
+
+        /*public void WriteToStream( Stream stream )
+        {
+            WriteToStream( new BinaryWriter( stream ) );
+            //WriteToStream( new StreamWriter( stream ) );
+        }*/
+
+        public void WriteToStream( BinaryWriter writer )
+        {
+            using ( var memoryStream = new MemoryStream( GetEncryptedData() ) )
             {
-                var end = memoryStream.Length;
-                for ( var i = 0; i < end; i++ )
+                using ( var reader = new BinaryReader( memoryStream ) )
                 {
-                    writer.Write( reader.ReadByte() );
+                    var end = memoryStream.Length;
+                    for ( var i = 0; i < end; i++ )
+                    {
+                        writer.Write( reader.ReadByte() );
+                    }
                 }
             }
         }
-    }
 
-    private byte[] GetEncryptedData()
-    {
-        byte[] data;
-
-        using ( var memoryStream = new MemoryStream() )
+        private byte[] GetEncryptedData()
         {
-            using ( var writer = new BinaryWriter( memoryStream, new System.Text.UTF8Encoding( false, true ), true ) )
+            byte[] data;
+
+            using ( var memoryStream = new MemoryStream() )
             {
-                for ( var i = 0; i < _size; i++ )
+                using ( var writer = new BinaryWriter( memoryStream, new System.Text.UTF8Encoding( false, true ), true ) )
                 {
-                    WriteEntry( writer, i );
+                    for ( var i = 0; i < _size; i++ )
+                    {
+                        WriteEntry( writer, i );
+                    }
+                }
+
+                memoryStream.Position = 0;
+
+                using ( var reader = new BinaryReader( memoryStream ) )
+                {
+                    data = reader.ReadBytes( (int)_size * EntrySize );
+                    Encrypt( data, Key );
                 }
             }
 
-            memoryStream.Position = 0;
-
-            using ( var reader = new BinaryReader( memoryStream ) )
-            {
-                data = reader.ReadBytes( (int)_size * EntrySize );
-                Encrypt( data, Key );
-            }
+            return data;
         }
 
-        return data;
+        protected abstract void WriteEntry( BinaryWriter writer, int i );
     }
-
-    protected abstract void WriteEntry( BinaryWriter writer, int i );
 }
