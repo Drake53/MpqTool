@@ -6,7 +6,7 @@ namespace Foole.Mpq
     /// <summary>
     /// The <see cref="HashTable"/> of an <see cref="MpqArchive"/> contains the list of <see cref="MpqHash"/> objects.
     /// </summary>
-    public sealed class HashTable : MpqTable
+    internal sealed class HashTable : MpqTable
     {
         internal const string TableKey = "(hash table)";
 

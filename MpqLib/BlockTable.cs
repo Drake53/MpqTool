@@ -8,7 +8,7 @@ namespace Foole.Mpq
     /// <summary>
     /// The <see cref="BlockTable"/> of an <see cref="MpqArchive"/> contains the list of <see cref="MpqEntry"/> objects.
     /// </summary>
-    public sealed class BlockTable : MpqTable, IEnumerable<MpqEntry>
+    internal sealed class BlockTable : MpqTable, IEnumerable<MpqEntry>
     {
         internal const string TableKey = "(block table)";
 

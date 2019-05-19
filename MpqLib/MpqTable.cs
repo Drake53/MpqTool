@@ -3,7 +3,7 @@ using System.IO;
 
 namespace Foole.Mpq
 {
-    public abstract class MpqTable
+    internal abstract class MpqTable
     {
         protected uint _size;
 

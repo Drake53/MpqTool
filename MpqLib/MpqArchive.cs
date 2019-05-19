@@ -63,11 +63,11 @@ namespace Foole.Mpq
         }
 
         /// <exception cref="IOException"></exception>
-        public MpqArchive( string filename, ICollection<MpqFile> mpqFiles, HashTable hashTable = null, BlockTable blockTable = null, ushort blockSize = 8 )
-            : this ( File.Open( filename, FileMode.CreateNew, FileAccess.ReadWrite ), mpqFiles, hashTable, blockTable, blockSize )
+        public MpqArchive( string filename, ICollection<MpqFile> mpqFiles, ushort? hashTableSize = null, ushort blockSize = 8 )
+            : this ( File.Open( filename, FileMode.CreateNew, FileAccess.ReadWrite ), mpqFiles, hashTableSize, blockSize )
         { }
 
-        public MpqArchive( Stream sourceStream, ICollection<MpqFile> mpqFiles, HashTable hashTable = null, BlockTable blockTable = null, ushort blockSize = 8 )
+        public MpqArchive( Stream sourceStream, ICollection<MpqFile> mpqFiles, ushort? hashTableSize = null, ushort blockSize = 8 )
         {
             _baseStream = sourceStream;
 
@@ -84,7 +84,7 @@ namespace Foole.Mpq
 
             _headerOffset = BaseStream.Position;
 
-            Build( mpqFiles, blockSize, hashTable, blockTable );
+            Build( mpqFiles, hashTableSize, blockSize );
         }
 
         public MpqHeader Header => _mpqHeader;
@@ -111,14 +111,14 @@ namespace Foole.Mpq
             return new MpqArchive( sourceStream, loadListfile );
         }
 
-        public static MpqArchive Create( string filename, ICollection<MpqFile> mpqFiles, HashTable hashTable = null, BlockTable blockTable = null, ushort blockSize = 8 )
+        public static MpqArchive Create( string filename, ICollection<MpqFile> mpqFiles, ushort? hashTableSize = null, ushort blockSize = 8 )
         {
-            return new MpqArchive( filename, mpqFiles, hashTable, blockTable, blockSize );
+            return new MpqArchive( filename, mpqFiles, hashTableSize, blockSize );
         }
 
-        public static MpqArchive Create( Stream sourceStream, ICollection<MpqFile> mpqFiles, HashTable hashTable = null, BlockTable blockTable = null, ushort blockSize = 8 )
+        public static MpqArchive Create( Stream sourceStream, ICollection<MpqFile> mpqFiles, ushort? hashTableSize = null, ushort blockSize = 8 )
         {
-            return new MpqArchive( sourceStream, mpqFiles, hashTable, blockTable, blockSize );
+            return new MpqArchive( sourceStream, mpqFiles, hashTableSize, blockSize );
         }
 
         private void Init()
@@ -142,13 +142,13 @@ namespace Foole.Mpq
             _blockTable = new BlockTable( reader, _mpqHeader.BlockTableSize, (uint)_headerOffset );
 		}
 
-        private void Build( ICollection<MpqFile> mpqFiles, ushort blockSize, HashTable hashTable = null, BlockTable blockTable = null )
+        private void Build( ICollection<MpqFile> mpqFiles, ushort? hashTableSize, ushort blockSize )
         {
             _blockSize = 0x200 << blockSize;
 
             var fileCount = (uint)mpqFiles.Count;
-            _hashTable = hashTable ?? new HashTable( fileCount * 8 );
-            _blockTable = blockTable ?? new BlockTable( fileCount, MpqHeader.Size ); // TODO: headeroffset?
+            _hashTable = new HashTable( Math.Max( hashTableSize ?? fileCount * 8, fileCount ) );
+            _blockTable = new BlockTable( fileCount, MpqHeader.Size ); // TODO: headeroffset?
 
             using ( var writer = new BinaryWriter( BaseStream, new UTF8Encoding( false, true ), true ) )
             {
@@ -165,15 +165,15 @@ namespace Foole.Mpq
                 foreach ( var mpqFile in mpqFiles )
                 {
                     uint locale = 0;
-                    mpqFile.AddToArchive( fileIndex, filePos, locale, hashTable.Mask );
+                    mpqFile.AddToArchive( fileIndex, filePos, locale, _hashTable.Mask );
 
                     if ( archiveBeforeTables )
                     {
                         mpqFile.WriteToStream( writer );
                     }
 
-                    hashTableEntries += hashTable.Add( mpqFile.MpqHash, mpqFile.HashIndex, mpqFile.HashCollisions );
-                    blockTable.Add( mpqFile.MpqEntry );
+                    hashTableEntries += _hashTable.Add( mpqFile.MpqHash, mpqFile.HashIndex, mpqFile.HashCollisions );
+                    _blockTable.Add( mpqFile.MpqEntry );
 
                     filePos += mpqFile.MpqEntry.CompressedSize;
                     fileIndex++;
@@ -190,8 +190,8 @@ namespace Foole.Mpq
                 blockTable.UpdateSize();
                 */
 
-                hashTable.WriteToStream( writer );
-                blockTable.WriteToStream( writer );
+                _hashTable.WriteToStream( writer );
+                _blockTable.WriteToStream( writer );
                 
                 if ( !archiveBeforeTables )
                 {
@@ -203,7 +203,7 @@ namespace Foole.Mpq
 
                 writer.Seek( (int)_headerOffset, SeekOrigin.Begin );
 
-                _mpqHeader = new MpqHeader( filePos, hashTable.Size, blockTable.Size, blockSize, archiveBeforeTables );
+                _mpqHeader = new MpqHeader( filePos, _hashTable.Size, _blockTable.Size, blockSize, archiveBeforeTables );
                 _mpqHeader.WriteToStream( writer );
             }
         }
