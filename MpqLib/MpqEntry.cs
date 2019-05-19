@@ -129,7 +129,7 @@ namespace Foole.Mpq
         {
             if (Filename == null) return 0;
 
-            uint seed = MpqArchive.HashString(Path.GetFileName(Filename), 0x300);
+            uint seed = StormBuffer.HashString(Path.GetFileName(Filename), 0x300);
             if ((Flags & MpqFileFlags.BlockOffsetAdjustedKey) == MpqFileFlags.BlockOffsetAdjustedKey)
                 seed = (seed + _fileOffset) ^ FileSize;
             return seed;

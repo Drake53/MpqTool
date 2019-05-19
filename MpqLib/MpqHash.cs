@@ -37,12 +37,12 @@ namespace Foole.Mpq
         }
 
         public MpqHash( string fileName, uint mask, uint locale, uint blockIndex )
-            : this( MpqArchive.HashString( fileName, 0x100 ), MpqArchive.HashString( fileName, 0x200 ), locale, blockIndex, mask )
+            : this( StormBuffer.HashString( fileName, 0x100 ), StormBuffer.HashString( fileName, 0x200 ), locale, blockIndex, mask )
         { }
 
         public static uint GetIndex( string path, uint mask )
         {
-            return MpqArchive.HashString( path, 0 ) & mask;
+            return StormBuffer.HashString( path, 0 ) & mask;
         }
 
         public bool IsEmpty()

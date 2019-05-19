@@ -28,12 +28,12 @@ namespace Foole.Mpq
 
         public static void Encrypt( byte[] data, string key )
         {
-            MpqArchive.EncryptBlock( data, MpqArchive.HashString( key, 0x300 ) );
+            StormBuffer.EncryptBlock( data, StormBuffer.HashString( key, 0x300 ) );
         }
 
         public static void Decrypt( byte[] data, string key )
         {
-            MpqArchive.DecryptBlock( data, MpqArchive.HashString( key, 0x300 ) );
+            StormBuffer.DecryptBlock( data, StormBuffer.HashString( key, 0x300 ) );
         }
 
         /*public void WriteToStream( Stream stream )

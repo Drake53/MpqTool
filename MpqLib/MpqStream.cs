@@ -106,12 +106,12 @@ namespace Foole.Mpq
             {
                 if (_entry.EncryptionSeed == 0)  // This should only happen when the file name is not known
                 {
-                    _entry.EncryptionSeed = MpqArchive.DetectFileSeed(_blockPositions[0], _blockPositions[1], blockpossize) + 1;
+                    _entry.EncryptionSeed = StormBuffer.DetectFileSeed(_blockPositions[0], _blockPositions[1], blockpossize) + 1;
                     if (_entry.EncryptionSeed == 1)
                         throw new MpqParserException("Unable to determine encyption seed");
                 }
 
-                MpqArchive.DecryptBlock(_blockPositions, _entry.EncryptionSeed - 1);
+                StormBuffer.DecryptBlock(_blockPositions, _entry.EncryptionSeed - 1);
 
                 if (_blockPositions[0] != blockpossize)
                     throw new MpqParserException("Decryption failed");
@@ -153,7 +153,7 @@ namespace Foole.Mpq
                     throw new MpqParserException("Unable to determine encryption key");
 
                 encryptionseed = (uint)(blockIndex + _entry.EncryptionSeed);
-                MpqArchive.DecryptBlock(data, encryptionseed);
+                StormBuffer.DecryptBlock(data, encryptionseed);
             }
 
             if (_entry.IsCompressed && (toread != expectedLength))
