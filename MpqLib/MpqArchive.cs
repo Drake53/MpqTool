@@ -148,7 +148,7 @@ namespace Foole.Mpq
 
             var fileCount = (uint)mpqFiles.Count;
             _hashTable = new HashTable( Math.Max( hashTableSize ?? fileCount * 8, fileCount ) );
-            _blockTable = new BlockTable( fileCount, MpqHeader.Size ); // TODO: headeroffset?
+            _blockTable = new BlockTable( fileCount, (uint)_headerOffset );
 
             using ( var writer = new BinaryWriter( BaseStream, new UTF8Encoding( false, true ), true ) )
             {
