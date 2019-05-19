@@ -13,7 +13,7 @@ namespace Foole.Mpq
 
         public abstract string Key { get; }
 
-        protected abstract int EntrySize { get; }
+        protected internal abstract int EntrySize { get; }
 
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public MpqTable( uint size )

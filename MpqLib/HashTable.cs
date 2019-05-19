@@ -3,6 +3,9 @@ using System.IO;
 
 namespace Foole.Mpq
 {
+    /// <summary>
+    /// The <see cref="HashTable"/> of an <see cref="MpqArchive"/> contains the list of <see cref="MpqHash"/> objects.
+    /// </summary>
     public sealed class HashTable : MpqTable
     {
         internal const string TableKey = "(hash table)";
@@ -10,7 +13,7 @@ namespace Foole.Mpq
         private MpqHash[] _hashes;
         private uint _mask;
 
-        // The size must always be a power of two.
+        // The size of the hashtable must always be a power of two.
         public static uint GenerateMask( uint size )
         {
             size--;
@@ -19,14 +22,14 @@ namespace Foole.Mpq
             size |= size >> 4;
             size |= size >> 8;
             size |= size >> 16;
-            return ++size;
+            return size;
         }
 
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public HashTable( uint size ) : base( GenerateMask( size ) )
+        public HashTable( uint size ) : base( GenerateMask( size ) + 1 )
         {
             _mask = _size - 1;
-            _hashes = new MpqHash[Size];
+            _hashes = new MpqHash[size];
             for ( var i = 0; i < _size; i++ )
             {
                 _hashes[i] = MpqHash.NULL;
@@ -43,11 +46,41 @@ namespace Foole.Mpq
         public HashTable( uint knownFiles, uint unknownFiles, uint oldHeaderSize, float multiplier )
             : this( knownFiles, 1 - (float)unknownFiles / oldHeaderSize, multiplier ) { }
 
+        internal HashTable( BinaryReader reader, uint size ) : base( size )
+        {
+            _mask = _size - 1;
+            _hashes = new MpqHash[size];
+
+            var hashdata = reader.ReadBytes( (int)( size * MpqHash.Size ) );
+            Decrypt( hashdata, TableKey );
+
+            using ( var stream = new MemoryStream( hashdata ) )
+            {
+                using ( var streamReader = new BinaryReader( stream ) )
+                {
+                    for ( var i = 0; i < size; i++ )
+                    {
+                        _hashes[i] = new MpqHash( streamReader, _mask );
+                    }
+                }
+            }
+        }
+
         public uint Mask => _mask;
 
         public override string Key => TableKey;
 
-        protected override int EntrySize => (int)MpqHash.Size;
+        protected internal override int EntrySize => (int)MpqHash.Size;
+
+        internal MpqHash this[int index]
+        {
+            get => _hashes[index];
+        }
+
+        internal MpqHash this[uint index]
+        {
+            get => _hashes[index];
+        }
 
         public uint Add( MpqHash hash, uint hashIndex, uint hashCollisions )
         {

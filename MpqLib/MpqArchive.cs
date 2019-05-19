@@ -38,15 +38,12 @@ namespace Foole.Mpq
 	public class MpqArchive : IDisposable, IEnumerable<MpqEntry>
 	{
 		private MpqHeader _mpqHeader;
-        //private HashTable _hashtable;
-        //private BlockTable _blocktable;
+        private HashTable _hashtable;
+        private BlockTable _blocktable;
 		private long _headerOffset;
-		private MpqHash[] _hashes;
-		private MpqEntry[] _entries;
 
         internal Stream BaseStream { get; private set; }
         internal int BlockSize { get; private set; }
-        internal uint HashEntryMask => _mpqHeader.HashTableSize - 1;
 
         /// <exception cref="FileNotFoundException"></exception>
         /// <exception cref="MpqParserException"></exception>
@@ -140,12 +137,6 @@ namespace Foole.Mpq
             return new MpqArchive()
         }*/
 
-        public void Dispose()
-		{
-            if (BaseStream != null)
-                BaseStream.Close();
-		}
-
 		private void Init()
 		{
 			if (LocateMpqHeader() == false)
@@ -154,31 +145,17 @@ namespace Foole.Mpq
             if (_mpqHeader.HashTableOffsetHigh != 0 || _mpqHeader.ExtendedBlockTableOffset != 0 || _mpqHeader.BlockTableOffsetHigh != 0)
                 throw new MpqParserException("MPQ format version 1 features are not supported");
 
-            BinaryReader br = new BinaryReader(BaseStream);
+            var reader = new BinaryReader(BaseStream);
 
             BlockSize = 0x200 << _mpqHeader.BlockSize;
 
 			// Load hash table
             BaseStream.Seek(_mpqHeader.HashTablePos, SeekOrigin.Begin);
-			byte[] hashdata = br.ReadBytes((int)(_mpqHeader.HashTableSize * MpqHash.Size));
-			MpqTable.Decrypt(hashdata, HashTable.TableKey);
-
-			BinaryReader br2 = new BinaryReader(new MemoryStream(hashdata));
-			_hashes = new MpqHash[_mpqHeader.HashTableSize];
-
-			for (int i = 0; i < _mpqHeader.HashTableSize; i++)
-				_hashes[i] = new MpqHash( br2, HashEntryMask );
+            _hashtable = new HashTable( reader, _mpqHeader.HashTableSize );
 
 			// Load entry table
             BaseStream.Seek(_mpqHeader.BlockTablePos, SeekOrigin.Begin);
-			byte[] entrydata = br.ReadBytes((int)(_mpqHeader.BlockTableSize * MpqEntry.Size));
-			MpqTable.Decrypt(entrydata, BlockTable.TableKey);
-
-			br2 = new BinaryReader(new MemoryStream(entrydata));
-			_entries = new MpqEntry[_mpqHeader.BlockTableSize];
-
-			for (int i = 0; i < _mpqHeader.BlockTableSize; i++)
-                _entries[i] = new MpqEntry(br2, (uint)_headerOffset);
+            _blocktable = new BlockTable( reader, _mpqHeader.BlockTableSize, (uint)_headerOffset );
 		}
 		
 		private bool LocateMpqHeader()
@@ -278,7 +255,7 @@ namespace Foole.Mpq
 			if (!TryGetHashEntry(filename, out hash))
 				throw new FileNotFoundException("File not found: " + filename);
 
-            entry = _entries[hash.BlockIndex];
+            entry = _blocktable[hash.BlockIndex];
             if (entry.Filename == null)
                 entry.Filename = filename;
 
@@ -292,9 +269,7 @@ namespace Foole.Mpq
 
 		public bool FileExists(string filename)
 		{
-			MpqHash hash;
-            
-            return TryGetHashEntry(filename, out hash);
+            return TryGetHashEntry(filename, out _ );
 		}
 
         public bool AddListfileFilenames()
@@ -324,13 +299,13 @@ namespace Foole.Mpq
             MpqHash hash;
             if (!TryGetHashEntry(filename, out hash)) return false;
 
-            _entries[hash.BlockIndex].Filename = filename;
+            _blocktable[hash.BlockIndex].Filename = filename;
             return true;
         }
 
         public MpqEntry this[int index]
         {
-            get { return _entries[index]; }
+            get { return _blocktable[index]; }
         }
 
         public MpqEntry this[string filename]
@@ -339,13 +314,13 @@ namespace Foole.Mpq
             {
                 MpqHash hash;
                 if (!TryGetHashEntry(filename, out hash)) return null;
-                return _entries[hash.BlockIndex];
+                return _blocktable[hash.BlockIndex];
             }
         }
 
         public int Count
         { 
-            get { return _entries.Length; } 
+            get { return (int)_blocktable.Size; } 
         }
 
         public MpqHeader Header
@@ -360,15 +335,15 @@ namespace Foole.Mpq
 			uint name1 = StormBuffer.HashString(filename, 0x100);
 			uint name2 = StormBuffer.HashString(filename, 0x200);
 
-			for(uint i = index; i < _hashes.Length; ++i)
+			for(uint i = index; i < _hashtable.Size; ++i)
 			{
-				hash = _hashes[i];
+				hash = _hashtable[i];
                 if (hash.Name1 == name1 && hash.Name2 == name2)
                     return true;
 			}
             for (uint i = 0; i < index; i++)
             {
-                hash = _hashes[i];
+                hash = _hashtable[i];
                 if (hash.Name1 == name1 && hash.Name2 == name2)
                     return true;
             }
@@ -379,11 +354,11 @@ namespace Foole.Mpq
 
         private int TryGetHashEntry( int entryIndex, out MpqHash hash )
         {
-            for ( var i = 0; i < _hashes.Length; i++ )
+            for ( var i = 0; i < _hashtable.Size; i++ )
             {
-                if ( _hashes[i].BlockIndex == entryIndex )
+                if ( _hashtable[i].BlockIndex == entryIndex )
                 {
-                    hash = _hashes[i];
+                    hash = _hashtable[i];
                     return i;
                 }
             }
@@ -392,17 +367,17 @@ namespace Foole.Mpq
             return -1;
         }
 
-        private uint FindCollidingHashEntries( uint hashIndex, bool returnOnUnknown )
+        /*private uint FindCollidingHashEntries( uint hashIndex, bool returnOnUnknown )
         {
             var count = (uint)0;
             var initial = hashIndex;
             for ( ; hashIndex >= 0; count++ )
             {
-                if ( _hashes[--hashIndex].IsEmpty() )
+                if ( _hashtable[--hashIndex].IsEmpty() )
                 {
                     return count;
                 }
-                else if ( returnOnUnknown && _entries[_hashes[hashIndex].BlockIndex].Filename == null )
+                else if ( returnOnUnknown && _blocktable[_hashtable[hashIndex].BlockIndex].Filename == null )
                 {
                     return count;
                 }
@@ -410,27 +385,35 @@ namespace Foole.Mpq
             hashIndex = HashEntryMask;
             for ( ; hashIndex > initial; count++ )
             {
-                if ( _hashes[--hashIndex].IsEmpty() )
+                if ( _hashtable[--hashIndex].IsEmpty() )
                 {
                     return count;
                 }
-                else if ( returnOnUnknown && _entries[_hashes[hashIndex].BlockIndex].Filename == null )
+                else if ( returnOnUnknown && _blocktable[_hashtable[hashIndex].BlockIndex].Filename == null )
                 {
                     return count;
                 }
             }
             return count;
+        }*/
+
+        public void Dispose()
+        {
+            if ( BaseStream != null )
+                BaseStream.Close();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return _entries.GetEnumerator();
+            return (_blocktable as IEnumerable).GetEnumerator();
         }
 
         IEnumerator<MpqEntry> IEnumerable<MpqEntry>.GetEnumerator()
         {
-            foreach (MpqEntry entry in _entries)
+            foreach ( var entry in _blocktable )
+            {
                 yield return entry;
+            }
         }
     }
 }
