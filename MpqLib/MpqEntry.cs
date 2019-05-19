@@ -56,32 +56,7 @@ namespace Foole.Mpq
         internal bool IsAdded { get; private set; }
         private string _filename;
 
-        public void SetPos( uint filePos )
-        {
-            if ( IsAdded )
-            {
-                throw new InvalidOperationException( "Cannot change the FilePos for an MpqEntry after it's been set." );
-            }
-
-            //TODO: also set _fileOffset? (actually, can set _fileOffset in WriteToStream method, because there the offset should be passed as well)
-            FilePos = filePos;
-            IsAdded = true;
-        }
-
         public static readonly uint Size = 16;
-
-        public string Filename
-        {
-            get
-            {
-                return _filename;
-            }
-            set
-            {
-                _filename = value;
-                EncryptionSeed = CalculateEncryptionSeed();
-            }
-        }
 
         public MpqEntry(BinaryReader br, uint headerOffset)
         {
@@ -116,23 +91,48 @@ namespace Foole.Mpq
             IsAdded = true;
         }
 
-        internal MpqEntry( uint compressedSize, uint fileSize, MpqFileFlags flags )
+        internal MpqEntry( string filename, uint compressedSize, uint fileSize, MpqFileFlags flags )
         {
             CompressedSize = compressedSize;
             FileSize = fileSize;
             Flags = flags;
+
+            _filename = filename;
         }
 
-        public static MpqEntry Dummy => new MpqEntry( 0, 0, MpqFileFlags.Exists ); //remove exists flag??
+        public static MpqEntry Dummy => new MpqEntry( null, 0, 0, MpqFileFlags.Exists ); //remove exists flag??
 
-        private uint CalculateEncryptionSeed()
+        public string Filename
         {
-            if (Filename == null) return 0;
+            get => _filename;
+            set
+            {
+                _filename = value;
+                EncryptionSeed = CalculateEncryptionSeed();
+            }
+        }
 
-            uint seed = StormBuffer.HashString(Path.GetFileName(Filename), 0x300);
-            if ((Flags & MpqFileFlags.BlockOffsetAdjustedKey) == MpqFileFlags.BlockOffsetAdjustedKey)
-                seed = (seed + _fileOffset) ^ FileSize;
-            return seed;
+        public bool IsEncrypted => ( Flags & MpqFileFlags.Encrypted ) != 0;
+
+        public bool IsCompressed => ( Flags & MpqFileFlags.Compressed ) != 0;
+
+        public bool Exists => Flags != 0;
+
+        public bool IsSingleUnit => ( Flags & MpqFileFlags.SingleUnit ) != 0;
+
+        // For debugging
+        public int FlagsAsInt => (int)Flags;
+
+        public void SetPos( uint filePos )
+        {
+            if ( IsAdded )
+            {
+                throw new InvalidOperationException( "Cannot change the FilePos for an MpqEntry after it's been set." );
+            }
+
+            //TODO: also set _fileOffset? (actually, can set _fileOffset in WriteToStream method, because there the offset should be passed as well)
+            FilePos = filePos;
+            IsAdded = true;
         }
 
         public override string ToString()
@@ -146,36 +146,15 @@ namespace Foole.Mpq
             return Filename;
         }
 
-        public bool IsEncrypted
+        private uint CalculateEncryptionSeed()
         {
-            get
-            {
-                return (Flags & MpqFileFlags.Encrypted) != 0;
-            }
-        }
+            if ( Filename == null )
+                return 0;
 
-        public bool IsCompressed
-        {
-            get
-            {
-                return (Flags & MpqFileFlags.Compressed) != 0;
-            }
-        }
-
-        public bool Exists
-        {
-            get { return Flags != 0; }
-        }
-
-        public bool IsSingleUnit
-        {
-            get { return (Flags & MpqFileFlags.SingleUnit) != 0; }
-        }
-
-        // For debugging
-        public int FlagsAsInt
-        {
-            get { return (int)Flags; }
+            uint seed = StormBuffer.HashString( Path.GetFileName( Filename ), 0x300 );
+            if ( ( Flags & MpqFileFlags.BlockOffsetAdjustedKey ) == MpqFileFlags.BlockOffsetAdjustedKey )
+                seed = ( seed + _fileOffset ) ^ FileSize;
+            return seed;
         }
     }
 }

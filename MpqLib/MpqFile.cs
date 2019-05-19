@@ -30,7 +30,7 @@ namespace Foole.Mpq
             var fileSize = (uint)_baseStream.Length;
             var compressedSize = ( ( flags & MpqFileFlags.Compressed ) != 0 ) ? Compress() : fileSize;
 
-            _entry = new MpqEntry( compressedSize, fileSize, flags );
+            _entry = new MpqEntry( fileName, compressedSize, fileSize, flags );
         }
 
         // Use this contructor for files that came from another archive, and for which the filename is unknown.
