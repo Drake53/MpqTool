@@ -148,7 +148,7 @@ namespace Foole.Mpq
 
             var fileCount = (uint)mpqFiles.Count;
             _hashTable = new HashTable( Math.Max( hashTableSize ?? fileCount * 8, fileCount ) );
-            _blockTable = new BlockTable( fileCount, (uint)_headerOffset );
+            _blockTable = new BlockTable( fileCount );
 
             using ( var writer = new BinaryWriter( BaseStream, new UTF8Encoding( false, true ), true ) )
             {
@@ -160,12 +160,13 @@ namespace Foole.Mpq
 
                 // Write Archive
                 var fileIndex = (uint)0;
-                var filePos = (uint)0;
+                var fileOffset = archiveBeforeTables ? MpqHeader.Size : throw new NotImplementedException();
+                var filePos = fileOffset;
                 // TODO: add support for encryption of the archive files
                 foreach ( var mpqFile in mpqFiles )
                 {
                     uint locale = 0;
-                    mpqFile.AddToArchive( fileIndex, filePos, locale, _hashTable.Mask );
+                    mpqFile.AddToArchive( (uint)_headerOffset, fileIndex, filePos, locale, _hashTable.Mask );
 
                     if ( archiveBeforeTables )
                     {
@@ -203,7 +204,7 @@ namespace Foole.Mpq
 
                 writer.Seek( (int)_headerOffset, SeekOrigin.Begin );
 
-                _mpqHeader = new MpqHeader( filePos, _hashTable.Size, _blockTable.Size, blockSize, archiveBeforeTables );
+                _mpqHeader = new MpqHeader( filePos - fileOffset, _hashTable.Size, _blockTable.Size, blockSize, archiveBeforeTables );
                 _mpqHeader.WriteToStream( writer );
             }
         }

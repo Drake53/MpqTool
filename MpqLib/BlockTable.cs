@@ -13,19 +13,16 @@ namespace Foole.Mpq
         internal const string TableKey = "(block table)";
 
         private List<MpqEntry> _entries;
-        private uint _offset;
 
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public BlockTable( uint size, uint headerOffset ) : base( size )
+        public BlockTable( uint size ) : base( size )
         {
             _entries = new List<MpqEntry>( (int)size );
-            _offset = headerOffset;
         }
 
         internal BlockTable( BinaryReader reader, uint size, uint headerOffset ) : base( size )
         {
             _entries = new List<MpqEntry>( (int)size );
-            _offset = headerOffset;
 
             var entrydata = reader.ReadBytes( (int)( size * MpqEntry.Size ) );
             Decrypt( entrydata, TableKey );
@@ -36,7 +33,7 @@ namespace Foole.Mpq
                 {
                     for ( var i = 0; i < size; i++ )
                     {
-                        _entries.Add( new MpqEntry( streamReader, _offset ) );
+                        _entries.Add( new MpqEntry( streamReader, headerOffset ) );
                     }
                 }
             }
@@ -72,12 +69,7 @@ namespace Foole.Mpq
 
         protected override void WriteEntry( BinaryWriter writer, int i )
         {
-            var entry = _entries[i];
-
-            writer.Write( entry.FilePos + _offset );
-            writer.Write( entry.CompressedSize );
-            writer.Write( entry.FileSize );
-            writer.Write( (uint)entry.Flags );
+            _entries[i].WriteEntry( writer );
         }
 
         IEnumerator IEnumerable.GetEnumerator()

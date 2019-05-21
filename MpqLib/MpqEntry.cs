@@ -123,16 +123,25 @@ namespace Foole.Mpq
         // For debugging
         public int FlagsAsInt => (int)Flags;
 
-        public void SetPos( uint filePos )
+        public void SetPos( uint headerOffset, uint fileOffset )
         {
             if ( IsAdded )
             {
                 throw new InvalidOperationException( "Cannot change the FilePos for an MpqEntry after it's been set." );
             }
 
-            //TODO: also set _fileOffset? (actually, can set _fileOffset in WriteToStream method, because there the offset should be passed as well)
-            FilePos = filePos;
+            _fileOffset = fileOffset;
+            FilePos = headerOffset + fileOffset;
+
             IsAdded = true;
+        }
+
+        public void WriteEntry( BinaryWriter writer )
+        {
+            writer.Write( _fileOffset );
+            writer.Write( CompressedSize );
+            writer.Write( FileSize );
+            writer.Write( (uint)Flags );
         }
 
         public override string ToString()

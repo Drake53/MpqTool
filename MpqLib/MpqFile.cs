@@ -74,9 +74,9 @@ namespace Foole.Mpq
             _entry.SetPos( 0 );
         }*/
 
-        public void AddToArchive( uint index, uint filePos, uint locale, uint mask )
+        public void AddToArchive( uint headerOffset, uint index, uint filePos, uint locale, uint mask )
         {
-            _entry.SetPos( filePos );
+            _entry.SetPos( headerOffset, filePos );
 
             // This file came from another archive, and has an unknown filename.
             if ( _hash.HasValue )

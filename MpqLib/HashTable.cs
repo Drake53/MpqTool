@@ -29,7 +29,7 @@ namespace Foole.Mpq
         public HashTable( uint size ) : base( GenerateMask( size ) + 1 )
         {
             _mask = _size - 1;
-            _hashes = new MpqHash[size];
+            _hashes = new MpqHash[_size];
             for ( var i = 0; i < _size; i++ )
             {
                 _hashes[i] = MpqHash.NULL;
@@ -49,7 +49,7 @@ namespace Foole.Mpq
         internal HashTable( BinaryReader reader, uint size ) : base( size )
         {
             _mask = _size - 1;
-            _hashes = new MpqHash[size];
+            _hashes = new MpqHash[_size];
 
             var hashdata = reader.ReadBytes( (int)( size * MpqHash.Size ) );
             Decrypt( hashdata, TableKey );
