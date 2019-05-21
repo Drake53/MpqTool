@@ -36,7 +36,7 @@ namespace Foole.Mpq
                 {
                     for ( var i = 0; i < size; i++ )
                     {
-                        _entries[i] = new MpqEntry( streamReader, _offset );
+                        _entries.Add( new MpqEntry( streamReader, _offset ) );
                     }
                 }
             }
