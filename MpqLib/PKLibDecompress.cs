@@ -34,7 +34,7 @@ namespace Foole.Mpq
 	enum CompressionType
 	{
 		Binary = 0,
-		Ascii = 1
+		Ascii = 1,
 	}
 	/// <summary>
 	/// A decompressor for PKLib implode/explode

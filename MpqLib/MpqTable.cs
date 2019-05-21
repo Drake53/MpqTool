@@ -20,7 +20,7 @@ namespace Foole.Mpq
         {
             if ( size > MaxSize )
             {
-                throw new ArgumentOutOfRangeException( "size" );
+                throw new ArgumentOutOfRangeException( nameof(size) );
             }
 
             _size = size;

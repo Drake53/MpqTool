@@ -39,7 +39,7 @@ namespace Foole.Mpq
         {
             if ( mpqHash.Mask == 0 )
             {
-                throw new ArgumentException( "Expected the Mask value of mpqHash argument to be set to a non-zero value." );
+                throw new ArgumentException( "Expected the Mask value of mpqHash argument to be set to a non-zero value.", nameof(mpqHash) );
             }
 
             _hash = mpqHash;

@@ -213,13 +213,13 @@ namespace Foole.Mpq
                     target = Length + offset;
                     break;
                 default:
-                    throw new ArgumentException("Origin", "Invalid SeekOrigin");
+                    throw new ArgumentException("Invalid SeekOrigin", nameof(origin));
             }
 
             if (target < 0)
-                throw new ArgumentOutOfRangeException("Attmpted to Seek before the beginning of the stream");
+                throw new ArgumentOutOfRangeException(nameof(offset), "Attmpted to Seek before the beginning of the stream");
             if (target >= Length)
-                throw new ArgumentOutOfRangeException("Attmpted to Seek beyond the end of the stream");
+                throw new ArgumentOutOfRangeException(nameof(offset), "Attmpted to Seek beyond the end of the stream");
 
             _position = target;
 

@@ -41,7 +41,7 @@ namespace Foole.Mpq
         BlockOffsetAdjustedKey = 0x020000, // AKA FixSeed
         SingleUnit = 0x1000000,
         FileHasMetadata = 0x04000000, // Appears in WoW 1.10 or newer.  Indicates the file has associated metadata.
-        Exists = 0x80000000
+        Exists = 0x80000000,
     }
 
     public class MpqEntry

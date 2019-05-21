@@ -48,7 +48,7 @@ namespace Foole.Mpq
 		public int ReadBits(int bitCount)
 		{
 			if (bitCount > 16)
-				throw new ArgumentOutOfRangeException("BitCount", "Maximum BitCount is 16");
+				throw new ArgumentOutOfRangeException(nameof(bitCount), "Maximum BitCount is 16");
 			if (EnsureBits(bitCount) == false) return -1;
             int result = _current & (0xffff >> (16 - bitCount));
 			WasteBits(bitCount);
