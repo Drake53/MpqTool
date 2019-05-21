@@ -2,19 +2,24 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Authors>Foole, Drake</Authors>
     <Company />
     <RepositoryUrl></RepositoryUrl>
     <PackageTags>MPQ MoPaQ</PackageTags>
-    <Description>Library for reading and building files in MPQ format.</Description>
+    <Description>Library for opening and creating files in MPQ format.</Description>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageProjectUrl>https://github.com/Drake53/MpqTool</PackageProjectUrl>
     <PackageId>Foole.MpqLib</PackageId>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <RootNamespace>Foole.Mpq</RootNamespace>
-    <AssemblyVersion>1.0.1</AssemblyVersion>
-    <Version>1.0.1</Version>
-    <FileVersion>1.0.1</FileVersion>
+    <AssemblyVersion>1.0.3</AssemblyVersion>
+    <Version>1.0.3</Version>
+    <FileVersion>1.0.3</FileVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <WarningLevel>0</WarningLevel>
   </PropertyGroup>
 
   <ItemGroup>
